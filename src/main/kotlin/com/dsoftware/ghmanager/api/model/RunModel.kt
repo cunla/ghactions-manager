@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonFormat
 import kotlinx.serialization.Serializable
 import java.util.Date
 
+interface ListItem {
+    fun isHeader(): Boolean;
+}
 
 data class WorkflowTypes(
     val totalCount: Int,
@@ -16,7 +19,9 @@ data class WorkflowType(
     val name: String,
     val path: String,
     val state: String,
-)
+) : ListItem {
+    override fun isHeader(): Boolean = true
+}
 
 data class PullRequest(
     val id: Int,
@@ -57,7 +62,7 @@ data class WorkflowRun(
     val headCommit: GitHubHeadCommit,
     val repository: GitHubRepository,
     val pullRequests: List<PullRequest>? = emptyList(),
-) : Comparable<WorkflowRun> {
+) : Comparable<WorkflowRun>, ListItem {
 
     /**
      * Compare workflows by their updated_at, or created_at (the newest first), or by id run_number both dates are null
@@ -68,6 +73,8 @@ data class WorkflowRun(
             ?: other.createdAt?.compareTo(this.createdAt)
             ?: other.runNumber.compareTo(this.runNumber)
     }
+
+    override fun isHeader(): Boolean = false
 }
 
 data class GitHubRepository(

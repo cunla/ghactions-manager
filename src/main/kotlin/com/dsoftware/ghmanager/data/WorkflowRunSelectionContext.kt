@@ -1,6 +1,7 @@
 package com.dsoftware.ghmanager.data
 
 import com.dsoftware.ghmanager.api.WorkflowRunFilter
+import com.dsoftware.ghmanager.api.model.ListItem
 import com.dsoftware.ghmanager.api.model.WorkflowRun
 import com.intellij.collaboration.ui.SingleValueModel
 import com.intellij.openapi.Disposable
@@ -16,6 +17,8 @@ import org.jetbrains.plugins.github.authentication.accounts.GithubAccount
 import org.jetbrains.plugins.github.util.GHGitRepositoryMapping
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import javax.swing.event.ListDataEvent
+import javax.swing.event.ListDataListener
 
 
 class WorkflowRunSelectionContext internal constructor(
@@ -31,8 +34,7 @@ class WorkflowRunSelectionContext internal constructor(
 ) : Disposable.Parent {
     private val frequency: Long = runsListLoader.frequency()
     private val task: ScheduledFuture<*>
-    val runsListModel: CollectionListModel<WorkflowRun>
-        get() = runsListLoader.listModel
+    val runsListModel = CollectionListModel<ListItem>()
     private val selectedWfRun: WorkflowRun?
         get() = runSelectionHolder.selection
     val jobDataProviderLoadModel: SingleValueModel<WorkflowRunJobsDataProvider?> = SingleValueModel(null)
@@ -71,6 +73,31 @@ class WorkflowRunSelectionContext internal constructor(
                 logsDataProvider?.reload()
             }
         }, 1, frequency, TimeUnit.SECONDS)
+        runsListLoader.listModel.addListDataListener(object : ListDataListener {
+            override fun intervalAdded(e: ListDataEvent) {
+                if (e.type == ListDataEvent.INTERVAL_ADDED) update()
+            }
+
+            override fun contentsChanged(e: ListDataEvent) {}
+            override fun intervalRemoved(e: ListDataEvent) {
+                if (e.type == ListDataEvent.INTERVAL_REMOVED) update()
+            }
+
+            fun update() {
+                val runsByWorkflowId = runsListLoader.listModel.items.groupBy { it.workflowId }
+                val workflowMap = runsListLoader.workflowTypes.associateBy { it.id }
+                val result = mutableListOf<ListItem>()
+                runsByWorkflowId.forEach { (workflowId, runs) ->
+                    val workflow = workflowMap[workflowId]
+                    if (workflow != null) {
+                        result.add(workflow)
+                        result.addAll(runs)
+                    }
+                }
+                runsListModel.replaceAll(result)
+            }
+
+        })
     }
 
     fun getCurrentAccountGHUser(): GHUser {

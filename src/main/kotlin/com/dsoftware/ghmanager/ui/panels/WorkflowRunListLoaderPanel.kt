@@ -2,8 +2,11 @@ package com.dsoftware.ghmanager.ui.panels
 
 
 import com.dsoftware.ghmanager.actions.ActionKeys
+import com.dsoftware.ghmanager.api.model.ListItem
 import com.dsoftware.ghmanager.api.model.WorkflowRun
+import com.dsoftware.ghmanager.api.model.WorkflowType
 import com.dsoftware.ghmanager.data.WorkflowRunListLoader
+import com.dsoftware.ghmanager.data.WorkflowRunListSelectionHolder
 import com.dsoftware.ghmanager.data.WorkflowRunSelectionContext
 import com.dsoftware.ghmanager.ui.ToolbarUtil
 import com.dsoftware.ghmanager.ui.panels.filters.WfRunsFiltersFactory
@@ -51,10 +54,12 @@ import java.awt.BorderLayout
 import java.awt.Component
 import java.awt.event.ActionEvent
 import java.awt.event.MouseEvent
+import javax.accessibility.Accessible
 import javax.swing.AbstractAction
 import javax.swing.Action
 import javax.swing.Box
 import javax.swing.BoxLayout
+import javax.swing.DefaultListSelectionModel
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JList
@@ -65,6 +70,7 @@ import javax.swing.ListSelectionModel
 import javax.swing.ScrollPaneConstants
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
+import javax.swing.event.ListSelectionEvent
 
 class LoadingErrorHandler(private val resetRunnable: () -> Unit) {
     fun getActionForError(): Action {
@@ -76,10 +82,22 @@ class LoadingErrorHandler(private val resetRunnable: () -> Unit) {
     }
 }
 
-class WorkflowRunList(model: ListModel<WorkflowRun>) :
-    JBList<WorkflowRun>(model), DataProvider, CopyProvider {
+
+class WorkflowRunList(model: ListModel<ListItem>, selectionHolder: WorkflowRunListSelectionHolder) :
+    JBList<ListItem>(model), DataProvider, CopyProvider {
 
     init {
+        selectionModel = object : DefaultListSelectionModel() {
+            override fun setSelectionInterval(index0: Int, index1: Int) {
+                if (canSelect(index0)) {
+                    super.setSelectionInterval(index0, index1)
+                }
+            }
+
+            private fun canSelect(index0: Int): Boolean {
+                return !getModel().getElementAt(index0).isHeader()
+            }
+        }
         selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
 
         val renderer = WorkflowRunsListCellRenderer()
@@ -88,6 +106,16 @@ class WorkflowRunList(model: ListModel<WorkflowRun>) :
 
         ScrollingUtil.installActions(this)
         ClientProperty.put(this, AnimatedIcon.ANIMATION_IN_RENDERER_ALLOWED, true)
+        selectionModel.addListSelectionListener { e: ListSelectionEvent ->
+            if (!e.valueIsAdjusting) {
+                val selectedIndex = selectedIndex
+                if (selectedIndex >= 0 && selectedIndex < model.size) {
+                    val currSelection = model.getElementAt(selectedIndex)
+                    if (!currSelection.isHeader() && selectionHolder.selection != currSelection)
+                        selectionHolder.selection = currSelection as WorkflowRun
+                }
+            }
+        }
     }
 
     override fun getActionUpdateThread(): ActionUpdateThread {
@@ -103,12 +131,12 @@ class WorkflowRunList(model: ListModel<WorkflowRun>) :
     override fun getData(dataId: String): Any? = when {
         PlatformDataKeys.COPY_PROVIDER.`is`(dataId) -> this
         ActionKeys.SELECTED_WORKFLOW_RUN.`is`(dataId) -> selectedValue
-        ActionKeys.SELECTED_WORKFLOW_RUN_FILEPATH.`is`(dataId) -> selectedValue?.path
+        ActionKeys.SELECTED_WORKFLOW_RUN_FILEPATH.`is`(dataId) -> (selectedValue as WorkflowRun?)?.path
         else -> null
     }
 
-    private inner class WorkflowRunsListCellRenderer : ListCellRenderer<WorkflowRun>, JPanel() {
-
+    private inner class WorkflowCell(workflowRun: WorkflowRun, isSelected: Boolean, list: JList<out ListItem>) :
+        JPanel(), Accessible {
         private val stateIcon = JLabel()
         private val title = JLabel()
         private val info = JLabel()
@@ -128,41 +156,47 @@ class WorkflowRunList(model: ListModel<WorkflowRun>) :
             add(title, CC().growX().pushX().minWidth("pref/2px"))
             add(labels, CC().minWidth("pref/2px").alignX("right").wrap())
             add(info, CC().minWidth("pref/2px").skip(1).spanX(3))
-        }
-
-        override fun getListCellRendererComponent(
-            list: JList<out WorkflowRun>,
-            ghWorkflowRun: WorkflowRun,
-            index: Int,
-            isSelected: Boolean,
-            cellHasFocus: Boolean
-        ): Component {
             UIUtil.setBackgroundRecursively(this, ListUiUtil.WithTallRow.background(list, isSelected, list.hasFocus()))
             val primaryTextColor = ListUiUtil.WithTallRow.foreground(isSelected, list.hasFocus())
             val secondaryTextColor = ListUiUtil.WithTallRow.secondaryForeground(isSelected, list.hasFocus())
 
-            stateIcon.icon = ToolbarUtil.statusIcon(ghWorkflowRun.status, ghWorkflowRun.conclusion)
+            stateIcon.icon = ToolbarUtil.statusIcon(workflowRun.status, workflowRun.conclusion)
             title.apply {
-                text = ghWorkflowRun.headCommit.message.split("\n")[0]
+                text = workflowRun.headCommit.message.split("\n")[0]
                 foreground = primaryTextColor
             }
 
             info.apply {
-                val updatedAtLabel = ToolbarUtil.makeTimePretty(ghWorkflowRun.updatedAt)
-                val action = if (ghWorkflowRun.event == "release") "created by" else "pushed by"
+                val updatedAtLabel = ToolbarUtil.makeTimePretty(workflowRun.updatedAt)
+                val action = if (workflowRun.event == "release") "created by" else "pushed by"
 
-                text = "${ghWorkflowRun.name} #${ghWorkflowRun.runNumber}: " +
-                    "$action ${ghWorkflowRun.headCommit.author.name} started $updatedAtLabel"
+                text = "${workflowRun.name} #${workflowRun.runNumber}: " +
+                    "$action ${workflowRun.headCommit.author.name} started $updatedAtLabel"
                 foreground = secondaryTextColor
             }
             labels.apply {
                 removeAll()
-                add(JBLabel(" ${ghWorkflowRun.headBranch} ", UIUtil.ComponentStyle.SMALL).apply {
+                add(JBLabel(" ${workflowRun.headBranch} ", UIUtil.ComponentStyle.SMALL).apply {
                     foreground = JBColor(ColorUtil.softer(secondaryTextColor), ColorUtil.softer(secondaryTextColor))
                 })
                 add(Box.createRigidArea(JBDimension(4, 0)))
             }
-            return this
+        }
+    }
+
+    private inner class WorkflowRunsListCellRenderer : ListCellRenderer<ListItem> {
+        override fun getListCellRendererComponent(
+            list: JList<out ListItem>,
+            item: ListItem,
+            index: Int,
+            isSelected: Boolean,
+            cellHasFocus: Boolean
+        ): Component {
+            if (item.isHeader()) {
+                return JLabel((item as WorkflowType).name)
+            }
+
+            return WorkflowCell(item as WorkflowRun, isSelected, list)
         }
     }
 
@@ -176,11 +210,10 @@ internal class WorkflowRunListLoaderPanel(
     private val context: WorkflowRunSelectionContext,
 ) : BorderLayoutPanel(), Disposable {
     private val scope = MainScope().also { Disposer.register(parentDisposable) { it.cancel() } }
-    private val runListComponent: WorkflowRunList = WorkflowRunList(context.runsListModel)
+    private val runListComponent: WorkflowRunList = WorkflowRunList(context.runsListModel, context.runSelectionHolder)
         .apply {
             emptyText.clear()
             installPopup(this)
-            ToolbarUtil.installSelectionHolder(this, context.runSelectionHolder)
         }
     private val scrollPane = ScrollPaneFactory.createScrollPane(
         runListComponent,
@@ -226,7 +259,6 @@ internal class WorkflowRunListLoaderPanel(
         workflowRunsLoader.addErrorChangeListener(this) {
             updateInfoPanelAndEmptyText()
         }
-//        val filters = createFilters(viewScope)
         setLoading(workflowRunsLoader.loading)
         updateInfoPanelAndEmptyText()
         val actionsManager = ActionManager.getInstance()
