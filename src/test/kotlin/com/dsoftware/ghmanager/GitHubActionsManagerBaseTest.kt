@@ -21,6 +21,8 @@ import com.intellij.toolWindow.ToolWindowHeadlessManagerImpl
 import com.intellij.util.concurrency.annotations.RequiresEdt
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.yield
@@ -84,6 +86,8 @@ abstract class GitHubActionsManagerBaseTest {
         }.toSet()
 
         projectRule.project.registerServiceInstance(GhActionsService::class.java, object : GhActionsService {
+            override val coroutineScope: CoroutineScope
+                get() = CoroutineScope(SupervisorJob())
             override val knownRepositoriesState: StateFlow<Set<GHGitRepositoryMapping>>
                 get() = MutableStateFlow(repos)
             override val knownRepositories: Set<GHGitRepositoryMapping>

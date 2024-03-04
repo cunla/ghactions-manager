@@ -53,6 +53,7 @@ class WorkflowToolWindowTabController(
 
     init {
         LOG.debug("Create WorkflowToolWindowTabController for ${repositoryMapping.remote.url}")
+        Disposer.register(parentDisposable, checkedDisposable)
         contentDisposable = Disposable {
             dataContextRepository.clearContext(repositoryMapping)
         }

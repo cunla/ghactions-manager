@@ -6,6 +6,8 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.StoragePathMacros
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 
 data class GithubActionsManagerSettings(
     var useCustomRepos: Boolean = false,
@@ -30,7 +32,7 @@ data class GithubActionsManagerSettings(
     ],
     reportStatistic = false,
 )
-class GhActionsSettingsService : PersistentStateComponent<GithubActionsManagerSettings>,Disposable {
+class GhActionsSettingsService : PersistentStateComponent<GithubActionsManagerSettings>, Disposable {
     private var state = GithubActionsManagerSettings()
 
     override fun getState(): GithubActionsManagerSettings {
