@@ -7,6 +7,7 @@ import com.dsoftware.ghmanager.ui.settings.GithubActionsManagerSettings
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
+import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.TestApplicationManager
@@ -51,7 +52,7 @@ abstract class GitHubActionsManagerBaseTest {
     @BeforeEach
     open fun setUp(testInfo: TestInfo) {
         this.testInfo = testInfo
-        toolWindowManager = ToolWindowHeadlessManagerImpl(projectRule.project)
+        toolWindowManager = ToolWindowManager.getInstance(projectRule.project) as ToolWindowHeadlessManagerImpl
         toolWindow = toolWindowManager.doRegisterToolWindow("test")
     }
 
