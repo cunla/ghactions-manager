@@ -20,16 +20,16 @@ import javax.swing.JPanel
 
 
 class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
-    private lateinit var requestExecutorfactoryMock: GithubApiRequestExecutor.Factory
+    private lateinit var requestExecutorFactoryMock: GithubApiRequestExecutor.Factory
 
     @BeforeEach
     override fun setUp(testInfo: TestInfo) {
         super.setUp(testInfo)
-        requestExecutorfactoryMock = mockk<GithubApiRequestExecutor.Factory> {
+        requestExecutorFactoryMock = mockk<GithubApiRequestExecutor.Factory> {
             every { create(token = any()) } throws Exception("No executor")
         }
         mockkObject(GithubApiRequestExecutor.Factory)
-        every { GithubApiRequestExecutor.Factory.getInstance() } returns requestExecutorfactoryMock
+        every { GithubApiRequestExecutor.Factory.getInstance() } returns requestExecutorFactoryMock
     }
 
     @Test
@@ -53,7 +53,7 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
         Assertions.assertEquals(message("factory.go.to.github-settings"), subComponents[1].getCharSequence(true))
         Assertions.assertEquals(message("factory.go.to.ghmanager-settings"), subComponents[2].getCharSequence(true))
         verify {
-            requestExecutorfactoryMock.create(token = any()) wasNot Called
+            requestExecutorFactoryMock.create(token = any()) wasNot Called
         }
     }
 
@@ -61,9 +61,9 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
     fun `test GitHub Account exists but no repositories configured`() {
         mockGhActionsService(emptySet(), setOf("account1"))
 
-        toolWindowFactory.init(toolWindow)
         executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
 
+        //Assert
         Assertions.assertEquals(1, toolWindow.contentManager.contentCount)
         val component = toolWindow.contentManager.contents[0].component
         Assertions.assertEquals(
@@ -74,21 +74,21 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
         val panel = component as JBPanelWithEmptyText
         Assertions.assertEquals(message("factory.empty-panel.no-repos-in-project"), panel.emptyText.text)
         verify {
-            requestExecutorfactoryMock.create(token = any()) wasNot Called
+            requestExecutorFactoryMock.create(token = any()) wasNot Called
         }
 
     }
 
     @Test
     fun `test GitHub Account and repos configured shows repo-panel`() {
+
         mockkStatic(GHCompatibilityUtil::class)
         every { GHCompatibilityUtil.getOrRequestToken(any(), any()) } returns "token"
-        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
         mockSettingsService(GithubActionsManagerSettings(useCustomRepos = false))
+        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
 
-        toolWindowFactory.init(toolWindow)
         executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
-
+        //Assert
         Assertions.assertEquals(1, toolWindow.contentManager.contentCount)
         val content = toolWindow.contentManager.contents[0]
         Assertions.assertEquals("owner/repo", content.displayName)
@@ -96,7 +96,7 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
         val panel = content.component as JPanel
         Assertions.assertEquals(1, panel.componentCount)
         verify {
-            requestExecutorfactoryMock.create(token = any())
+            requestExecutorFactoryMock.create(token = any())
         }
 
 
@@ -106,7 +106,6 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
     fun `test when using settings custom repos + zero repos`() {
         mockkStatic(GHCompatibilityUtil::class)
         every { GHCompatibilityUtil.getOrRequestToken(any(), any()) } returns "token"
-        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
         mockSettingsService(
             GithubActionsManagerSettings(
                 useCustomRepos = true,
@@ -116,9 +115,9 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
                 )
             )
         )
-        toolWindowFactory.init(toolWindow)
+        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
         executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
-
+        // Assert
         val content = toolWindow.contentManager.contents[0]
         Assertions.assertEquals(message("factory.default-tab-title"), content.displayName)
         Assertions.assertEquals(1, toolWindow.contentManager.contentCount)
@@ -134,7 +133,7 @@ class ToolWindowFactoryTest : GitHubActionsManagerBaseTest() {
         )
         Assertions.assertEquals(message("factory.go.to.ghmanager-settings"), subComponents[1].getCharSequence(true))
         verify {
-            requestExecutorfactoryMock.create(token = any()) wasNot Called
+            requestExecutorFactoryMock.create(token = any()) wasNot Called
         }
 
     }

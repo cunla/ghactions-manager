@@ -39,13 +39,11 @@ class TestWindowTabControllerWorkflowRunsPanel : GitHubActionsManagerBaseTest() 
     @BeforeEach
     override fun setUp(testInfo: TestInfo) {
         super.setUp(testInfo)
-        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
         executorMock = mockk<GithubApiRequestExecutor>(relaxed = true) {}
         mockkObject(GithubApiRequestExecutor.Factory)
         every { GithubApiRequestExecutor.Factory.getInstance() } returns mockk<GithubApiRequestExecutor.Factory> {
             every { create(token = any()) } returns executorMock
         }
-        toolWindowFactory.init(toolWindow)
         executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
     }
 
@@ -57,6 +55,7 @@ class TestWindowTabControllerWorkflowRunsPanel : GitHubActionsManagerBaseTest() 
             createWorkflowRun(id = 2, status = "queued"),
         )
         mockGithubApiRequestExecutor(workflowRunsList)
+        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
 
         // act
         executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
@@ -67,17 +66,18 @@ class TestWindowTabControllerWorkflowRunsPanel : GitHubActionsManagerBaseTest() 
     }
 
     //    // todo: fix this test
-//    @Test
-//    fun `test repo without workflow-runs`() = runBlocking {
-//        mockGithubApiRequestExecutor(emptyList())
-//
-//        // act
-//        executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
-//
-//        // assert
-//        val workflowRunsListPanel = assertTabsAndPanels()
-//        TestCase.assertEquals(0, workflowRunsListPanel.runListComponent.model.size)
-//    }
+    @Test
+    fun `test repo without workflow-runs`() = runBlocking {
+        mockGithubApiRequestExecutor(emptyList())
+        mockGhActionsService(setOf("http://github.com/owner/repo"), setOf("account1"))
+
+        // act
+        executeSomeCoroutineTasksAndDispatchAllInvocationEvents(projectRule.project)
+
+        // assert
+        val workflowRunsListPanel = assertTabsAndPanels()
+        TestCase.assertEquals(0, workflowRunsListPanel.runListComponent.model.size)
+    }
 
 
     fun mockGithubApiRequestExecutor(
@@ -125,9 +125,8 @@ class TestWindowTabControllerWorkflowRunsPanel : GitHubActionsManagerBaseTest() 
         TestCase.assertEquals(1, tabWrapPanel.componentCount)
         val workflowDataContextService = projectRule.project.service<WorkflowDataContextService>()
         TestCase.assertEquals(1, workflowDataContextService.repositories.size)
-        val workflowRunSelectionContext = workflowDataContextService.repositories.values.first().value.get()
         verify(atLeast = 1) {
-            executorMock.execute(any(), matchApiRequestUrl<WorkflowTypes>("/actions/workflows"))
+            executorMock.execute(any(), matchApiRequestUrl<WorkflowRuns>("/actions/runs")).hint(WorkflowRuns::class)
             executorMock.execute(
                 any(), matchApiRequestUrl<GithubResponsePage<GithubUserWithPermissions>>("/collaborators")
             )
