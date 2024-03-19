@@ -48,11 +48,19 @@
         <group id="Github.Workflow.ToolWindow.List.Popup.Selected">
             <action id="Github.Workflow.Open.In.Browser"
                     class="com.dsoftware.ghmanager.actions.WorkflowOpenInBrowserAction"/>
+            <action id="Github.Workflow.Rerun"
+                    class="com.dsoftware.ghmanager.actions.RerunWorkflowAction"/>
+            <action id="Github.Workflow.Cancel"
+                    class="com.dsoftware.ghmanager.actions.CancelWorkflowAction"/>
+            <action id="Github.Workflow.OpenFile"
+                    class="com.dsoftware.ghmanager.actions.OpenWorkflowFileAction"/>
             <action id="Github.Workflow.Rerun" class="com.dsoftware.ghmanager.actions.RerunWorkflowAction"/>
             <action id="Github.Workflow.Cancel" class="com.dsoftware.ghmanager.actions.CancelWorkflowAction"/>
             <action id="Github.Workflow.OpenFile" class="com.dsoftware.ghmanager.actions.OpenWorkflowFileAction"/>
             <action id="Github.Workflow.Open.PullRequest"
                     class="com.dsoftware.ghmanager.actions.PullRequestOpenInBrowserAction"/>
+            <action id="Github.Workflow.Open.PullRequest.In.ToolWindow"
+                    class="com.dsoftware.ghmanager.actions.OpenPullRequestInToolwindowAction"/>
             <reference id="Github.Workflow.List.Reload"/>
         </group>
         <group id="Github.ToolWindow.JobList.Popup">
